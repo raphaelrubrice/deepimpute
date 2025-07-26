@@ -178,7 +178,7 @@ class MultiNet:
     ):
         
         inspect_data(raw)
-        
+        print("SHAPE {}".format(raw.shape))
         if self.seed is not None:
             np.random.seed(self.seed)
 
@@ -189,13 +189,16 @@ class MultiNet:
                 raw = raw.sample(cell_subset)
 
         gene_metric = (raw.var()/(1+raw.mean())).sort_values(ascending=False)
-        gene_metric = gene_metric[gene_metric > 0]
+        print("GENE_METRIC {}".format(gene_metric.shape))
+        # gene_metric = gene_metric[gene_metric > 0]
+        # print("GENE_METRIC (AFTER) {}".format(gene_metric.shape))
 
         if genes_to_impute is None:
             genes_to_impute = self.filter_genes(gene_metric, minVMR, NN_lim=NN_lim)
         else:
             # Make the number of genes to impute a multiple of the network output dim
             n_genes = len(genes_to_impute)
+            print("GENES TO IMPUTE {}".format(n_genes))
             if n_genes % self.sub_outputdim != 0:
                 print("The number of input genes is not a multiple of {}. Filling with other genes.".format(n_genes))
                 fill_genes = gene_metric.index[:self.sub_outputdim-n_genes]
@@ -205,11 +208,11 @@ class MultiNet:
                     rest = self.sub_outputdim - n_genes - len(fill_genes)
                     fill_genes = np.concatenate([fill_genes,
                                                  np.random.choice(gene_metric.index, rest, replace=True)])
-
+                print("FILL GENES {}".format(len(fill_genes)))
                 genes_to_impute = np.concatenate([genes_to_impute, fill_genes])
-
+                print("GENES TO IMPUTE {}".format(len(genes_to_impute)))
         covariance_matrix = get_distance_matrix(raw, n_pred=n_pred)
-
+        print("COV {}".format(covariance_matrix.shape))
         self.setTargets(raw.reindex(columns=genes_to_impute), mode=mode)
         self.setPredictors(covariance_matrix, ntop=ntop)
 
@@ -331,15 +334,18 @@ class MultiNet:
         return genes_to_impute
 
     def setTargets(self,data, mode='random'):
-        
+        print("MODE", mode)
+        print("setTARGETS data", data.shape)
+        print('SUBOUTPUT', self.sub_outputdim)
         n_subsets = int(data.shape[1]/self.sub_outputdim)
-
+        print("N_SUBSETS", n_subsets)
         if mode == 'progressive':
             self.targets = data.columns.values.reshape([n_subsets, self.sub_outputdim])
         else:
             self.targets = np.random.choice(data.columns,
                                             [n_subsets, self.sub_outputdim],
                                             replace=False)
+        print("TARGETS", len(self.targets))
         
     def setPredictors(self, covariance_matrix, ntop=5):
         self.predictors = []
@@ -347,12 +353,12 @@ class MultiNet:
         for i,targets in enumerate(self.targets):
 
             genes_not_in_target = np.setdiff1d(covariance_matrix.columns, targets)
-
+            print(covariance_matrix.head())
+            print("TARGETS", "LCE3E" in targets)
             if genes_not_in_target.size == 0:
                 warnings.warn('Warning: number of target genes lower than output dim. Consider lowering down the sub_outputdim parameter',
                               UserWarning)
                 genes_not_in_target = covariance_matrix.columns
-            
             subMatrix = ( covariance_matrix
                           .loc[targets, genes_not_in_target]
                           )
