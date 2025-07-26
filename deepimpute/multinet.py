@@ -23,11 +23,11 @@ def get_distance_matrix(raw, n_pred=None):
     VMR[np.isinf(VMR)] = 0
     
     if n_pred is None:
-        potential_pred = raw.columns[VMR > 0]
+        potential_pred = raw.columns # [VMR > 0]
     else:
         print("Using {} predictors".format(n_pred))
         potential_pred = VMR.sort_values(ascending=False).index[:n_pred]
-
+    
     covariance_matrix = pd.DataFrame(np.abs(np.corrcoef(raw.T.loc[potential_pred])),
                                      index=potential_pred,
                                      columns=potential_pred).fillna(0)
@@ -160,8 +160,11 @@ class MultiNet:
             else:
                 print('Unknown loss: {}. Aborting.'.format(loss))
                 exit(1)
-
-        model.compile(optimizer=keras.optimizers.Adam(lr=self.NN_parameters['learning_rate']),
+        try:
+            model.compile(optimizer=keras.optimizers.Adam(learning_rate=self.NN_parameters['learning_rate']),
+                      loss=loss)
+        except:
+            model.compile(optimizer=keras.optimizers.Adam(lr=self.NN_parameters['learning_rate']),
                       loss=loss)
 
         return model
@@ -354,11 +357,16 @@ class MultiNet:
 
             genes_not_in_target = np.setdiff1d(covariance_matrix.columns, targets)
             print(covariance_matrix.head())
-            print("TARGETS", "LCE3E" in targets)
             if genes_not_in_target.size == 0:
                 warnings.warn('Warning: number of target genes lower than output dim. Consider lowering down the sub_outputdim parameter',
                               UserWarning)
                 genes_not_in_target = covariance_matrix.columns
+            for target in targets:
+                if target not in covariance_matrix.index:
+                    print(target, "NOT IN INDEX")
+            for pred in genes_not_in_target:
+                if pred not in covariance_matrix.columns:
+                    print(pred, "NOT IN COLUMNS")
             subMatrix = ( covariance_matrix
                           .loc[targets, genes_not_in_target]
                           )
